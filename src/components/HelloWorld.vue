@@ -23,7 +23,7 @@ function parseSong(song: string): Array<Doot> {
 
   for (let i = 0, prev = 0; i < song.length; i++) {
     // Validate character
-    if (!song.charAt(i).match(/[A-Z]|[0-9]|-|_/)) {
+    if (!song.charAt(i).match(/[A-Z]|[0-9]|-|_|#/)) {
       throw new Error(`Invald character ${song.charAt(i)} at index ${i}`)
     }
     // If we're at the end, parse whatever we have as a note
