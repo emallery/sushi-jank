@@ -24,7 +24,7 @@ class Doot {
     }
 
     this.duration = 1 + 0.35 /*The Sushi Constant™️*/ * (note.split('_').length - 1)
-    console.log(`Duration: ${this.duration}`)
+    // console.log(`Duration: ${this.duration}`)
   }
 }
 
@@ -36,14 +36,14 @@ function parseSong(song: string): Array<Doot> {
     if (!song.charAt(i).match(/[A-Z]|[0-9]|-|_|#/)) {
       throw new Error(`Invald character ${song.charAt(i)} at index ${i}`)
     }
-    // If we're at the end, parse whatever we have as a note
-    else if (i == song.length - 1) {
-      result.push(new Doot(song.slice(prev, i + 1)))
-      prev = i
-    }
-    // Otherwise, split up notes by letter names. (A rest, "-", is a note.)
+    // Split up notes by letter names. (A rest, "-", is a note.)
     else if (i > 0 && song.charAt(i).match(/[A-Z]|-/)) {
       result.push(new Doot(song.slice(prev, i)))
+      prev = i
+    }
+    // If we're at the end, parse whatever we have as a note
+    if (i == song.length - 1) {
+      result.push(new Doot(song.slice(prev, i + 1)))
       prev = i
     }
   }
@@ -53,7 +53,7 @@ function parseSong(song: string): Array<Doot> {
 // window.AudioContext = window.AudioContext || window.webkitAudioContext // ???
 let ctx: AudioContext
 const inputText = ref('')
-const defaultText = 'C4D4E4F4G4A4B4C5'
+const defaultText = 'D3D3D4_-A3_--G#3_-G3_-F3_-D3F3G3_-'
 
 function parseNoteName(name: string) {
   const midiNum = nameToMidiNumber(name)
@@ -148,9 +148,18 @@ function playDoot(ctx: AudioContext, doot: Doot) {
   <div class="greetings">
     <h1 class="green">{{ msg }}</h1>
     <h3>
-      You’ve successfully created a project with
-      <a href="https://vite.dev/" target="_blank" rel="noopener">Vite</a> +
-      <a href="https://vuejs.org/" target="_blank" rel="noopener">Vue 3</a>. What's next?
+      <ul>
+        <li>To play a note, specify a pitch like E4.</li>
+        <li>If you want to elongate the note a bit, you add an underscore like E4_.</li>
+        <li>To add a small pause you add a dash -. These can stack unlike the underscores.</li>
+        <li>
+          <i>
+            Note: Long notes play for longer but the longer duration is not taken into account
+            before the next note. Insert at least one dash to make notes play properly, like E4_-E4
+            would play without a break in between the notes.
+          </i>
+        </li>
+      </ul>
     </h3>
   </div>
   <input v-model="inputText" placeholder="Type something..." />
