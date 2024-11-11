@@ -11,7 +11,17 @@ function handlePlaying(value: boolean) {
 </script>
 
 <template>
+  <RouterView />
   <header>
+    <div class="wrapper">
+      <HelloWorld msg="How the Kobold Doot works!" @is-playing="handlePlaying" />
+
+      <nav>
+        <RouterLink to="/">Home</RouterLink>
+        <RouterLink to="/about">About</RouterLink>
+      </nav>
+    </div>
+
     <img
       v-if="!isPlaying"
       alt="Kobold loading"
@@ -28,18 +38,8 @@ function handlePlaying(value: boolean) {
       width="125"
       height="125"
     />
-
-    <div class="wrapper">
-      <HelloWorld msg="How the Kobold Doot works!" @is-playing="handlePlaying" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
   </header>
 
-  <RouterView />
   <div>
     <span>Version: {{ version }}</span>
   </div>
