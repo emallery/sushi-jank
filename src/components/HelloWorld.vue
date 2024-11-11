@@ -1,19 +1,56 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 defineProps<{
   msg: string
 }>()
 
-console.log('Hello, world')
+class Doot {
+  frequency: number
+  volume: number
+  duration: number
+  constructor(note: string) {
+    console.log(`Parsing note: ${note}`)
+
+    this.volume = 0.05 // 5% volume, but still really loud!!!
+    this.duration = 1
+    this.frequency = parseNoteName(note)
+  }
+}
+
+function parseSong(song: string): Array<Doot> {
+  const result = []
+
+  for (let i = 0, prev = 0; i < song.length; i++) {
+    // Validate character
+    if (!song.charAt(i).match(/[A-Z]|[0-9]|-|_/)) {
+      throw new Error(`Invald character ${song.charAt(i)} at index ${i}`)
+    }
+    // If we're at the end, parse whatever we have as a note
+    else if (i == song.length - 1) {
+      result.push(new Doot(song.slice(prev, i + 1)))
+      prev = i
+    }
+    // Otherwise, split up notes by letter names
+    else if (i > 0 && song.charAt(i).match(/[A-Z]/)) {
+      result.push(new Doot(song.slice(prev, i)))
+      prev = i
+    }
+  }
+  return result
+}
+
 // window.AudioContext = window.AudioContext || window.webkitAudioContext
-window.AudioContext = window.AudioContext
 let ctx: AudioContext
+const inputText = ref('')
+const defaultText = 'C4D4E4F4G4A4B4C5'
 
 function parseNoteName(name: string) {
   const midiNum = nameToMidiNumber(name)
 
   // Convert MIDI number to frequency (Hz)
   const freq = Math.pow(2, (midiNum - 69) / 12) * 440
-  console.log(`midiNum: ${midiNum}, freq: ${freq}Hz`)
+  // console.log(`midiNum: ${midiNum}, freq: ${freq}Hz`)
 
   return freq
 }
@@ -32,63 +69,51 @@ function nameToMidiNumber(name: string) {
     octave = parseInt(name.charAt(1))
   }
 
-  let offset
-  switch (letter) {
-    case 'A':
-      offset = 9
-      break
-    case 'A#':
-      offset = 10
-      break
-    case 'B':
-      offset = 11
-      break
-    case 'C':
-      offset = 0
-      break
-    case 'C#':
-      offset = 1
-      break
-    case 'D':
-      offset = 2
-      break
-    case 'D#':
-      offset = 3
-      break
-    case 'E':
-      offset = 4
-      break
-    case 'F':
-      offset = 5
-      break
-    case 'F#':
-      offset = 6
-      break
-    case 'G':
-      offset = 7
-      break
-    case 'G#':
-      offset = 8
-      break
-    default:
-      throw new Error(`Invalid note name: ${letter}`)
+  if (!octave) {
+    throw new Error('Invalid octave')
+  }
+
+  const map = new Map([
+    ['C', 0],
+    ['C#', 1],
+    ['D', 2],
+    ['D#', 3],
+    ['E', 4],
+    ['F', 5],
+    ['F#', 6],
+    ['G', 7],
+    ['G#', 8],
+    ['A', 9],
+    ['A#', 10],
+    ['B', 11],
+  ])
+
+  const offset = map.get(letter)
+  if (offset === undefined) {
+    throw new Error(`Invalid note name: ${letter}`)
   }
 
   const result = 12 + offset + octave * 12
-  console.log(`Converted "${name}" to MIDI value: ${result}`)
+  // console.log(`Converted "${name}" to MIDI value: ${result}`)
   return result
 }
 
 async function onButton() {
-  const audioData = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
-  ctx = ctx || new AudioContext()
+  if (!inputText.value) {
+    inputText.value = defaultText
+  }
 
-  for (const note of audioData) {
-    console.log(`Parsing note: ${note}`)
-    const freq = parseNoteName(note)
-    playDoot(ctx, freq)
-    // please don't look at this
-    await new Promise((r) => setTimeout(r, 200))
+  try {
+    const audioData = parseSong(inputText.value)
+
+    ctx = ctx || new AudioContext()
+    for (const note of audioData) {
+      playDoot(ctx, note.frequency)
+      // please don't look at this
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  } catch (e) {
+    console.log(e)
   }
 }
 
@@ -103,11 +128,8 @@ function playDoot(ctx: AudioContext, frequency: number) {
 
   osc.connect(gain)
   gain.connect(ctx.destination)
-  osc.start()
-
-  setTimeout(() => {
-    osc.stop()
-  }, 175)
+  osc.start(ctx.currentTime)
+  osc.stop(ctx.currentTime + 0.175)
 }
 </script>
 
@@ -120,6 +142,7 @@ function playDoot(ctx: AudioContext, frequency: number) {
       <a href="https://vuejs.org/" target="_blank" rel="noopener">Vue 3</a>. What's next?
     </h3>
   </div>
+  <input v-model="inputText" placeholder="Type something..." />
   <button @click="onButton">Play Audio</button>
 </template>
 
