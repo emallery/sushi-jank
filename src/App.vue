@@ -1,14 +1,36 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
+import { ref } from 'vue'
+const version = import.meta.env.VITE_APP_VERSION
+const isPlaying = ref(false)
+
+function handlePlaying(value: boolean) {
+  isPlaying.value = value
+}
 </script>
 
 <template>
   <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+    <img
+      v-if="!isPlaying"
+      alt="Kobold loading"
+      class="logo"
+      src="@/assets/loading.gif"
+      width="125"
+      height="125"
+    />
+    <img
+      v-if="isPlaying"
+      alt="Kobold playing"
+      class="logo"
+      src="@/assets/pog.gif"
+      width="125"
+      height="125"
+    />
 
     <div class="wrapper">
-      <HelloWorld msg="How the Kobold Doot works!" />
+      <HelloWorld msg="How the Kobold Doot works!" @is-playing="handlePlaying" />
 
       <nav>
         <RouterLink to="/">Home</RouterLink>
@@ -18,6 +40,9 @@ import HelloWorld from './components/HelloWorld.vue'
   </header>
 
   <RouterView />
+  <div>
+    <span>Version: {{ version }}</span>
+  </div>
 </template>
 
 <style scoped>

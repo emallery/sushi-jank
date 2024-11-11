@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 defineProps<{
   msg: string
 }>()
+
+const emit = defineEmits(['isPlaying'])
 
 class Doot {
   frequency: number
@@ -13,8 +15,7 @@ class Doot {
   constructor(note: string) {
     // console.log(`Parsing note: ${note}`)
     this.raw = note
-
-    this.volume = 0.05 // 5% volume, but still really loud!!!
+    this.volume = volume.value
 
     if (note.match(/-/)) {
       this.volume = 0
@@ -25,6 +26,17 @@ class Doot {
 
     this.duration = 1 + 0.35 /*The Sushi Constant™️*/ * (note.split('_').length - 1)
     // console.log(`Duration: ${this.duration}`)
+  }
+}
+
+class AudioContextWrapper {
+  ctx: AudioContext
+  osc: OscillatorNode
+  gain: GainNode
+  constructor() {
+    this.ctx = new AudioContext()
+    this.osc = this.ctx.createOscillator()
+    this.gain = this.ctx.createGain()
   }
 }
 
@@ -51,8 +63,18 @@ function parseSong(song: string): Array<Doot> {
 }
 
 // window.AudioContext = window.AudioContext || window.webkitAudioContext // ???
-let ctx: AudioContext
+let ctx: AudioContextWrapper
 const inputText = ref('')
+const volume = ref(0.05) // 5% volume, but still really loud!!!
+watch(volume, (nv) => {
+  if (ctx) {
+    ctx.gain.gain.setValueAtTime(nv, ctx.ctx.currentTime)
+  }
+})
+const isPlaying = ref(false)
+watch(isPlaying, (nv) => {
+  emit('isPlaying', nv)
+})
 const defaultText = 'D3D3D4_-A3_--G#3_-G3_-F3_-D3F3G3_-'
 
 function parseNoteName(name: string) {
@@ -108,7 +130,7 @@ function nameToMidiNumber(name: string) {
   return result
 }
 
-async function onButton() {
+async function onStartButton() {
   if (!inputText.value) {
     inputText.value = defaultText
   }
@@ -117,8 +139,14 @@ async function onButton() {
     const audioData = parseSong(inputText.value)
     console.log(audioData.map((doot) => doot.raw))
 
-    ctx = ctx || new AudioContext()
+    ctx = ctx || new AudioContextWrapper()
+
+    isPlaying.value = true
+
     for (const note of audioData) {
+      if (!isPlaying.value) {
+        return
+      }
       playDoot(ctx, note)
       // please don't look at this
       await new Promise((r) => setTimeout(r, 200))
@@ -126,11 +154,17 @@ async function onButton() {
   } catch (e) {
     console.log(e)
   }
+
+  isPlaying.value = false
 }
 
-function playDoot(ctx: AudioContext, doot: Doot) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
+async function onStopButton() {
+  isPlaying.value = false
+}
+
+function playDoot(ctx: AudioContextWrapper, doot: Doot) {
+  const osc = ctx.ctx.createOscillator()
+  const gain = ctx.gain
 
   osc.type = 'sawtooth'
   osc.frequency.value = doot.frequency
@@ -138,9 +172,9 @@ function playDoot(ctx: AudioContext, doot: Doot) {
   gain.gain.value = Math.min(doot.volume, 0.1)
 
   osc.connect(gain)
-  gain.connect(ctx.destination)
-  osc.start(ctx.currentTime)
-  osc.stop(ctx.currentTime + 0.175 * doot.duration)
+  gain.connect(ctx.ctx.destination)
+  osc.start(ctx.ctx.currentTime)
+  osc.stop(ctx.ctx.currentTime + 0.175 * doot.duration)
 }
 </script>
 
@@ -163,7 +197,10 @@ function playDoot(ctx: AudioContext, doot: Doot) {
     </h3>
   </div>
   <input v-model="inputText" placeholder="Type something..." />
-  <button @click="onButton">Play Audio</button>
+  <button v-if="!isPlaying" @click="onStartButton">Play Audio</button>
+  <button v-if="isPlaying" @click="onStopButton">Stop Audio</button>
+  <input type="range" min="0.0" max="0.1" step="0.01" v-model="volume" />
+  <div>{{ volume * 1000 }}%</div>
 </template>
 
 <style scoped>
