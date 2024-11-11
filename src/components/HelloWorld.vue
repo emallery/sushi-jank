@@ -9,12 +9,22 @@ class Doot {
   frequency: number
   volume: number
   duration: number
+  raw: string
   constructor(note: string) {
-    console.log(`Parsing note: ${note}`)
+    // console.log(`Parsing note: ${note}`)
+    this.raw = note
 
     this.volume = 0.05 // 5% volume, but still really loud!!!
-    this.duration = 1
-    this.frequency = parseNoteName(note)
+
+    if (note.match(/-/)) {
+      this.volume = 0
+      this.frequency = 0
+    } else {
+      this.frequency = parseNoteName(note)
+    }
+
+    this.duration = 1 + 0.35 /*The Sushi Constant™️*/ * (note.split('_').length - 1)
+    console.log(`Duration: ${this.duration}`)
   }
 }
 
@@ -31,8 +41,8 @@ function parseSong(song: string): Array<Doot> {
       result.push(new Doot(song.slice(prev, i + 1)))
       prev = i
     }
-    // Otherwise, split up notes by letter names
-    else if (i > 0 && song.charAt(i).match(/[A-Z]/)) {
+    // Otherwise, split up notes by letter names. (A rest, "-", is a note.)
+    else if (i > 0 && song.charAt(i).match(/[A-Z]|-/)) {
       result.push(new Doot(song.slice(prev, i)))
       prev = i
     }
@@ -40,7 +50,7 @@ function parseSong(song: string): Array<Doot> {
   return result
 }
 
-// window.AudioContext = window.AudioContext || window.webkitAudioContext
+// window.AudioContext = window.AudioContext || window.webkitAudioContext // ???
 let ctx: AudioContext
 const inputText = ref('')
 const defaultText = 'C4D4E4F4G4A4B4C5'
@@ -105,10 +115,11 @@ async function onButton() {
 
   try {
     const audioData = parseSong(inputText.value)
+    console.log(audioData.map((doot) => doot.raw))
 
     ctx = ctx || new AudioContext()
     for (const note of audioData) {
-      playDoot(ctx, note.frequency)
+      playDoot(ctx, note)
       // please don't look at this
       await new Promise((r) => setTimeout(r, 200))
     }
@@ -117,19 +128,19 @@ async function onButton() {
   }
 }
 
-function playDoot(ctx: AudioContext, frequency: number) {
+function playDoot(ctx: AudioContext, doot: Doot) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
 
   osc.type = 'sawtooth'
-  osc.frequency.value = frequency
+  osc.frequency.value = doot.frequency
 
-  gain.gain.value = 0.04
+  gain.gain.value = Math.min(doot.volume, 0.1)
 
   osc.connect(gain)
   gain.connect(ctx.destination)
   osc.start(ctx.currentTime)
-  osc.stop(ctx.currentTime + 0.175)
+  osc.stop(ctx.currentTime + 0.175 * doot.duration)
 }
 </script>
 
